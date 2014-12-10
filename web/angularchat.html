@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="jslibs/XHR.js"></script>
+    <script src="jslibs/Structure.js"></script>
+    <script src="jslibs/Table.js"></script>
+    <script src="jslibs/Combo.js"></script>
+    <script src="jslibs/NumberInput.js"></script>
+    <script src="jslibs/NumberInput.js"></script>
+    <script src="jslibs/Item.js"></script>
+    <script src="jslibs/ShoppingCart.js"></script>
+    <script src="jslibs/Button.js"></script>
+    <title>Chat With WebSocket</title>
+</head>
+<body>
+<div>
+    <input id="inputName" type="text" onkeyup="setNickname(event)"/>
+    <b>Nickname</b>
+</div>
+<div>
+    <input id="receiverName" type="text"/>
+    <b>To (only one allowed)</b>
+</div>
+<div>
+    <input id="inputMessage" type="text" value="Message" onkeyup="attemptSend(event)"/>
+    <input type="submit" value="Send" onclick="sendTextMessage()"/>
+</div>
+
+<div id="messages"></div>
+<script type="text/javascript">
+    const ERRORS = {
+        "error_01": "Username in use, reload the page",
+        "error_02": "That person is not connected"
+    };
+
+    const MSG = {
+        "msg_01": "Server > Hello, "
+    };
+
+    var i = 0;
+    var messagesRequest;
+    var connectClientCommand = new Var();
+    connectClientCommand.createVar("ChatSession", "getNick", "string", "name");
+    var getMessagesCommand = new Var();
+    getMessagesCommand.createVar("ChatSession", "getMessages", "string", "not received");
+    var nickName, destinationName;
+    var origin = window.location.origin;
+    var xhr = new XHR();
+    xhr.setURL(origin + "/SPPI");
+    xhr.setCallBackFun(getConnected);
+    xhr.send(connectClientCommand.getVar());
+    var xhr1 = new XHR();
+    xhr1.setURL(origin + "/SPPI");
+    xhr1.setCallBackFun(onMessage);
+
+
+    function getConnected() {
+        var status = JSON.parse(xhr.getResponse());
+
+        if (status.status) {
+            nickName = status.name;
+            document.getElementById("inputName").value = nickName;
+            document.getElementById("inputName").disabled = true;
+            showMemo(MSG.msg_01 + nickName + " You are connected");
+            messagesRequest = setInterval(function () {
+                console.log("Requested " + i + " times");
+                xhr1.send(getMessagesCommand.getVar());
+                i++;
+            }, 3000);
+        } else {
+            console.log("You don't have a session, login");
+        }
+    }
+
+    //todo, si el susuario se conecta de nuevo se debe colocar el nombre.
+    function loginStatus() {
+        var loginCommand = new Var();
+        loginCommand.createVar("ChatSession", "setNick", "string", nickName);
+        xhr = new XHR();
+        xhr.setURL(origin + "/SPPI");
+        xhr.setCallBackFun(setName);
+        xhr.send(loginCommand.getVar());
+    }
+
+    function setName() {
+        var status = JSON.parse(xhr.getResponse());
+
+        if (!status.status) { //should be a boolean
+            showMemo(ERRORS.error_01);
+        } else {
+            document.getElementById('inputName').disabled = true;
+            showMemo(MSG.msg_01 + nickName + " You are connected");
+            messagesRequest = setInterval(function () {
+                console.log("Requested " + i + " times");
+                xhr1.send(getMessagesCommand.getVar());
+                i++;
+            }, 5000);
+        }
+    }
+
+    function onMessage() {
+        var response = JSON.parse(xhr1.getResponse());
+        var number = response.messages.length;
+
+        if (number > 0) { //there are messages
+            for (var e in response.messages) {
+                if (response.messages.hasOwnProperty(e)) {
+                    showMemo("> " + response.messages[e].sender + ": " + response.messages[e].msg);
+                }
+            }
+        } else {
+            console.log();
+        }
+    }
+
+    function showMemo(response) {
+        document.getElementById('messages').innerHTML += '<br />' + response;
+    }
+
+    function setNickname(event) {
+        var unicode = event.keyCode ? event.keyCode : event.charCode;
+
+        if (unicode == 13) {
+            nickName = document.getElementById('inputName').value;
+            loginStatus();
+        }
+    }
+
+    function attemptSend(event) {
+        var unicode = event.keyCode ? event.keyCode : event.charCode;
+
+        if (unicode == 13) {
+            sendTextMessage();
+        }
+    }
+
+    function sendTextMessage() {
+        var receiverName = document.getElementById("receiverName").value;
+
+        if (receiverName != "") {
+            var message = new VarList();
+            var msg = document.getElementById("inputMessage").value;
+            var text = [receiverName, msg];
+            message.createVar("ChatSession", "sendMessage", "string", text);
+            document.getElementById("inputMessage").value = "";
+            xhr.setCallBackFun(onMessage);
+            xhr.send(message.getVar());
+        } else {
+            showMemo("> Server: message not sent, receiver must be specified");
+        }
+    }
+</script>
+</body>
+</html>

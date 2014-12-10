@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="jslibs/XHR.js"></script>
+    <script src="jslibs/Structure.js"></script>
+    <script src="jslibs/Table.js"></script>
+    <script src="jslibs/Combo.js"></script>
+    <script src="jslibs/NumberInput.js"></script>
+    <script src="jslibs/NumberInput.js"></script>
+    <script src="jslibs/Item.js"></script>
+    <script src="jslibs/ShoppingCart.js"></script>
+    <script src="jslibs/Button.js"></script>
+    <meta charset="ISO-8859-1">
+    <title>PPI1</title>
+</head>
+<body>
+<script>
+    var topPanel = document.createElement("div");
+    document.body.appendChild(topPanel);
+    topPanel.style.position = "relative";
+    topPanel.style.margin = "auto";
+    topPanel.style.textAlign = "center";
+    var origin = window.location.origin;
+    var allItems;
+    var cartItems;
+    var message;
+    var xhr = new XHR();
+    var xhr1 = new XHR();
+    var avItems = new Var();
+    var sessionCart = new Var();
+    var products = [];
+    var item = new Item();
+    var table = new Table();
+    var cart = new ShoppingCart();
+    var combo = new Combo();
+    var numIn = new NumberInput();
+    var but = new Button();
+    var buyButton = new Button();
+
+
+    sessionCart.createVar("Session", "getCart", "string", "currentCart");
+    avItems.createVar("Product", "get", "string", "available");
+    xhr.setURL(origin + "/SPPI");
+    xhr.setCallBackFun(getItems);
+    xhr.send(avItems.getVar());
+    xhr1.setURL(origin + "/SPPI");
+    xhr1.setCallBackFun(getItemsCart);
+    xhr1.send(sessionCart.getVar());
+	
+
+    //TODO: avItems A SHOPPINGCART to the server....
+    function getItems(){
+        allItems = JSON.parse(xhr.getResponse());
+        drawTop();
+    }
+
+    function getItemsCart(){
+        cartItems = JSON.parse(xhr1.getResponse());
+        drawBot();
+    }
+
+    function setItemsCart(){
+        cartItems = JSON.parse(xhr1.getResponse());
+    }
+    
+    function sendBuy(){
+    	var result = JSON.parse(xhr1.getResponse());
+    	if(result.bought == true){
+    		window.alert("Thanks for your pucharse, You were scammed! :D");
+    	} else {
+    		window.alert("Some products are out of stock!");
+    	}
+    	
+    }
+
+    function max() {
+        numIn.setMax(combo.selectedItem().quantity);
+        numIn.setValue(0);
+    }
+
+    function add(){
+        //If the umber is more than 0
+        if(numIn.getNum() > 0){
+            var items = [];
+            var fields = ["name","description","price","id","quantity"];
+            var types = ["string","string","double","int","int"];
+            var values = [];
+            var it = new Item();
+            it.setFields(combo.selectedItem());
+            it.quantity = numIn.getNum();
+            cart = table.getCart();
+            cart.addProduct(it);
+            table.destroy();
+            table.format(item);
+            table.fill(cart);
+            table.build();
+            table.show();
+            //c.createVar("ShippingCart","buy",["int","string"], 2, ["cedula","nombre"],[123,"Luis",234,"Carlos"]);
+            items = cart.getItems();
+            for(var e in items){
+                if(items.hasOwnProperty(e)){
+                    var val = items[e];
+                    for(var i = 0; i < fields.length; i++){
+                    	values.push(val[fields[i]]);
+                    }
+                }
+            }
+	        sessionCart = new RecordList();
+	        sessionCart.createVar("Session","setCart",types, items.length, fields, values);  
+            xhr1.setCallBackFun(setItemsCart);
+            xhr1.send(sessionCart.getVar());
+        }
+    }
+    
+    function buy(){
+		var items = [];
+		var fields = ["name","description","price","id","quantity"];
+		var types = ["string","string","double","int","int"];
+		var values = [];
+		cart = table.getCart();
+		items = cart.getItems();
+		for(var e in items){
+		    if(items.hasOwnProperty(e)){
+		        var val = items[e];
+		        for(var i = 0; i < fields.length; i++){
+		        	values.push(val[fields[i]]);
+		        }
+		    }
+		}
+		sessionCart = new RecordList();
+		sessionCart.createVar("Product","buy", types, items.length, fields, values);  
+		xhr1.setCallBackFun(sendBuy);
+		xhr1.send(sessionCart.getVar());
+    }
+
+    function drawTop(){
+        allItems = allItems.productos;
+        for(var e in allItems){
+            if(allItems.hasOwnProperty(e)) {
+                item.setFields(allItems[e]);
+                products[e] = item;
+                item = new Item();
+            }
+        }
+        combo.fill(products);
+        combo.build();
+        combo.onChange(max);
+        combo.show(topPanel);
+        numIn.setLimits(combo);
+        numIn.generateNumberInput();
+        numIn.showNumber(topPanel);
+        but.fill("Add");
+        but.build();
+        but.onClick(add);
+        but.show(topPanel);
+        buyButton.fill("Buy");
+        buyButton.build();
+        buyButton.onClick(buy);
+        buyButton.show(topPanel);
+    }
+
+    function drawBot() {
+    	table.format(item);
+        if(cartItems.hasOwnProperty("cart")) {
+        	var kart = cartItems.cart;
+        	if(kart[0] != null){
+	            for (var i in kart) {
+	                if (kart.hasOwnProperty(i)) {
+	                    item.setFields(kart[i]);
+	                    cart.addProduct(item);
+	                    item = new Item();
+	                }
+	            }
+	            table.fill(cart);
+            } else {
+            	table.fill();
+            }
+        } else if (cartItems === {}) {
+        	table.fill();
+        } 
+        table.build();
+        table.show();
+    }
+</script>
+</body>
+</html>
